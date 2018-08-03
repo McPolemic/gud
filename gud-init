@@ -1,0 +1,5 @@
+#!/bin/sh
+
+mkdir -p .git/objects
+mkdir -p .git/refs
+echo "ref: refs/heads/master" > .git/HEAD
