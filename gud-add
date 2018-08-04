@@ -1,0 +1,25 @@
+#!/usr/bin/env ruby
+require 'zlib'
+require 'digest'
+
+# Hashing file
+
+filename = ARGV.first
+contents = File.read(filename)
+blob_contents = p "blob #{contents.length}\0#{contents}"
+puts Digest::SHA1.hexdigest(blob_contents)
+
+# Updating index
+# This part is complicated and might be worth skipping until later
+# It consists of a header and one or more index entries, which are variable
+# length and a *pain* to parse in Ruby
+# Note: We could skip this and just shell out to `git update-index`
+header = "DIRC" +        # short for "directory cache"
+         [2].pack("N") + # Index version 2
+         [12].pack("N")  # 12 entries in the index
+
+contents = File.read(".git/index")
+contents.force_encoding("BINARY")
+contents[0,12] == "DIRC" + [2].pack("N") + [12].pack("N")
+# https://github.com/git/git/blob/master/Documentation/technical/index-format.txt :38
+contents[12..-1].unpack("N5N5x20x2Z100")
