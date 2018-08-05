@@ -9,6 +9,18 @@ contents = File.read(filename)
 blob_contents = p "blob #{contents.length}\0#{contents}"
 puts Digest::SHA1.hexdigest(blob_contents)
 
+# Note: Let's skip indexes for now and come back to them later. For now, adding
+# can write blobs for each file and store in a simplified index file somewhere.
+# It can the same information as the index (minus a bunch of dates and
+# ownership info).
+#
+# Let's do something like
+# [file path relative to git root, permissions, filename, blob SHA]
+#
+# Then a commit can cycle through that file, write out a tree, and build a
+# commit object. Maybe?
+
+
 # Updating index
 # This part is complicated and might be worth skipping until later
 # It consists of a header and one or more index entries, which are variable
