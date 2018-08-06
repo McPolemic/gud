@@ -1,13 +1,56 @@
 #!/usr/bin/env ruby
 require 'zlib'
 require 'digest'
+require 'fileutils'
 
-# Hashing file
+# TODO: This acts a bit like `git hash-object -w` until we're writing to an
+# index of some sort
+# A bunch of content in a single file that we want to save to Git
+class Blob
+  attr_reader :file_contents
+
+  def initialize(file_contents)
+    @file_contents = file_contents
+  end
+
+  def contents
+    "blob #{file_contents.length}\0#{file_contents}"
+  end
+
+  def compressed_contents
+    Zlib::Deflate.deflate(contents)
+  end
+
+  def sha
+    Digest::SHA1.hexdigest(contents)
+  end
+
+  def file
+    ".git/objects/#{sha[0..1]}/#{sha[2..-1]}"
+  end
+
+  # Save the blob object to the git object store. It's filename is based off
+  # it's SHA1 checksum, so if a file with that name already exists we can be
+  # (nearly) certain that the contents are unchanged and we don't need to
+  # actually write the file.
+  def save
+    return if File.exists?(file)
+
+    # Create parent directories
+    FileUtils.mkdir_p(File.dirname(file))
+
+    File.open(file, "w") do |f|
+      f.write(compressed_contents)
+    end
+
+    puts "Wrote blob #{file}"
+  end
+end
 
 filename = ARGV.first
 contents = File.read(filename)
-blob_contents = p "blob #{contents.length}\0#{contents}"
-puts Digest::SHA1.hexdigest(blob_contents)
+blob = Blob.new(contents)
+blob.save
 
 # Note: Let's skip indexes for now and come back to them later. For now, adding
 # can write blobs for each file and store in a simplified index file somewhere.
@@ -26,12 +69,12 @@ puts Digest::SHA1.hexdigest(blob_contents)
 # It consists of a header and one or more index entries, which are variable
 # length and a *pain* to parse in Ruby
 # Note: We could skip this and just shell out to `git update-index`
-header = "DIRC" +        # short for "directory cache"
-         [2].pack("N") + # Index version 2
-         [12].pack("N")  # 12 entries in the index
-
-contents = File.read(".git/index")
-contents.force_encoding("BINARY")
-contents[0,12] == "DIRC" + [2].pack("N") + [12].pack("N")
-# https://github.com/git/git/blob/master/Documentation/technical/index-format.txt :38
-contents[12..-1].unpack("N5N5x20x2Z100")
+# header = "DIRC" +        # short for "directory cache"
+#          [2].pack("N") + # Index version 2
+#          [12].pack("N")  # 12 entries in the index
+#
+# contents = File.read(".git/index")
+# contents.force_encoding("BINARY")
+# contents[0,12] == "DIRC" + [2].pack("N") + [12].pack("N")
+# # https://github.com/git/git/blob/master/Documentation/technical/index-format.txt :38
+# contents[12..-1].unpack("N5N5x20x2Z100")
