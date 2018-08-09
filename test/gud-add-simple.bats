@@ -24,3 +24,11 @@ teardown() {
 
   [ "$status" -eq 0 ]
 }
+
+@test "gud-add-simple should write a new file to the index" {
+  echo 'a' > a.txt
+  gud-add-simple a.txt
+  run cat .git/gud_index
+
+	[ "${output}" = '[["100644","a.txt","78981922613b2afb6025042ff6bd878ac1994e85"]]' ]
+}

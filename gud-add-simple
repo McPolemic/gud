@@ -2,6 +2,8 @@
 require 'zlib'
 require 'digest'
 require 'fileutils'
+require 'json'
+require 'set'
 
 # TODO: This acts a bit like `git hash-object -w` until we're writing to an
 # index of some sort
@@ -47,10 +49,44 @@ class Blob
   end
 end
 
+class SimpleIndex
+  attr_reader :index_file
+
+  def initialize(index_file)
+    @index_file = index_file
+  end
+
+  def index
+    existing_index = if File.exists?(index_file)
+                       JSON.parse(File.read(index_file))
+                     else
+                       []
+                     end
+    Set.new(existing_index)
+  end
+
+  def write_index(index)
+    File.open(index_file, 'w') do |file|
+      file.write(index.to_a.to_json)
+    end
+  end
+
+  def add_file(filename)
+    permissions = if File.executable?(filename)
+                    "100755"
+                  else
+                    "100644"
+                  end
+    contents = File.read(filename)
+    blob = Blob.new(contents)
+    blob.save
+    write_index(index << [permissions, filename, blob.sha])
+  end
+end
+
 filename = ARGV.first
-contents = File.read(filename)
-blob = Blob.new(contents)
-blob.save
+index = SimpleIndex.new(".git/gud_index")
+index.add_file(filename)
 
 # Note: Let's skip indexes for now and come back to them later. For now, adding
 # can write blobs for each file and store in a simplified index file somewhere.
